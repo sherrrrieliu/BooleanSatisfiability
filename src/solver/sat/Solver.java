@@ -23,33 +23,44 @@ public class Solver {
 	}
 
 	// 1. find unit clauses
+	//iterates through the clauses in the list
 	public int findUnitClause(List<Clause> clauses){
 		int index = -1;
 		for (Clause clause: clauses) {
 			if (clause.literals.size() == 1) {
+				// returns the index of the first clause that has exactly one literal. 
 				index = clauses.indexOf(clause);
 			}
 		}
+		// If no such clause is found, it returns -1.
 		return index;
 	}
+
+
 	public boolean unitPropagation(List<Clause> clauses) {
+		// check if there is a unit clause in the list. 
 		int index = findUnitClause(clauses);
+		// return false to indicate that no further progress can be made with unit propagation.
 		if (index == -1) return false;
+		// find a unit clause 
 		Clause unitClause = clauses.get(index);
+		// removes the unit clause from the list of clauses 
 		clauses.remove(unitClause);
 		Iterator<Integer> iterator = unitClause.literals.iterator();
 		Integer literal = iterator.next();
+		// adds the literal from the unit clause to the solution map.
 		solution.put(Math.abs(literal), literal > 0 ? true : false);
 		Iterator<Clause> iter = clauses.iterator();
 		while (iter.hasNext()) {
-    Clause clause = iter.next();
-    if (clause.literals.contains(literal)) {
-        iter.remove();
-    } else if (clause.literals.contains(-literal)) {
-        clause.literals.remove(-literal);
-    }
-}
-
+			Clause clause = iter.next();
+			// removes any clause that contains the same literal as the unit clause (because it is already satisfied)
+			if (clause.literals.contains(literal)) {
+					iter.remove();
+			// removes the negation of the literal from any clauses that contain it.
+			} else if (clause.literals.contains(-literal)) {
+					clause.literals.remove(-literal);
+			}
+		}
 		return true;
 	}
 
@@ -80,14 +91,16 @@ int findPureLiteral(List<Clause> clauses){
 // returns 0 if it's unable to perform the algorithm in case there are no pure literals
 boolean pureLiteralElimination(List<Clause> clauses){
   int literal = findPureLiteral(clauses);
+	// pure literal not found
   if (literal == 0) return false;
-  // set the solution for that literal
+  // adds the literal to the solution
 	solution.put(Math.abs(literal), literal > 0 ? true : false);
 
 	// remove clauses containing the pure literal
 	Iterator<Clause> iter = clauses.iterator();
 		while (iter.hasNext()) {
     Clause clause = iter.next();
+		// a pure literal is found, removes all clauses containing the literal
     if (clause.literals.contains(literal)) {
         iter.remove();
     }
@@ -126,11 +139,15 @@ boolean pureLiteralElimination(List<Clause> clauses){
 			if (!pureLiteralElimination(clauses)) break;
 		}
 
+		int literal = selectLiteral(clauses);
+		if (literal == 0) {
+			return -1;
+		}
 		// 4. if stuck, choose a random literal and branch on it
-		if(dpll(branch(clauses, selectLiteral(clauses))) == 1) {
+		if(dpll(branch(clauses, literal)) == 1) {
 			return 1;
 		}
-		return dpll(branch(clauses, -1 * selectLiteral(clauses)));
+		return dpll(branch(clauses, -1 * literal));
 	}
 
 	int selectLiteral(List<Clause> clauses) {
@@ -143,18 +160,23 @@ boolean pureLiteralElimination(List<Clause> clauses){
 }
 
 	private int checkSolution(List<Clause> clauses) {
-		if (areAllClausesUnit(clauses)) return 1;
-		// if (containsEmpty(clauses)) return -1;
-		return 0;
+		if (hasNoConflict(clauses)) return 1; // SAT || 
+		if (containsEmpty(clauses)) return -1; // UNSAT
+		return 0; // continue searching for a solution
 	}
 
-	public boolean areAllClausesUnit(List<Clause> clauses) {
-		HashMap<Integer, Integer> isUnit = new HashMap<>();
+	// checks if all literals in all clauses have no opposite literals anymore
+	public boolean hasNoConflict(List<Clause> clauses) {
+		if (clauses.isEmpty()) {
+			return true;
+		}
+		HashMap<Integer, Integer> noConflict = new HashMap<>();
     for (Clause clause : clauses) {
         for (Integer literal : clause.literals) {
-            int seen = isUnit.getOrDefault(Math.abs(literal), 0);
+            int seen = noConflict.getOrDefault(Math.abs(literal), 0);
 						if (seen == 0) {
-							isUnit.put(Math.abs(literal), Integer.signum(literal));
+							// sets their solutions accordingly
+							noConflict.put(Math.abs(literal), Integer.signum(literal));
 						} else if (seen == -Integer.signum(literal)) {
 							return false;
 						}
@@ -171,11 +193,10 @@ boolean pureLiteralElimination(List<Clause> clauses){
     }
     return true;
 }
-
+// if a clause contains no literal and is not removed, it means UNSAT.
 	private boolean containsEmpty(List<Clause> clauses) {
 		for (Clause clause: clauses) {
-			if (clause.literals.size() <= 0) {
-				System.out.println(clauses.indexOf(clause));
+			if (clause.literals.isEmpty()) {
 				return true;
 			}
 		}
